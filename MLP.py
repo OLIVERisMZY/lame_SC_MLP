@@ -1,14 +1,17 @@
 import math
-import pandas as pd
-import numpy as np
 import random
-from sklearn.decomposition import PCA
-from sklearn.datasets import make_gaussian_quantiles
-from sklearn.neural_network import MLPClassifier
-from sklearn.model_selection import train_test_split
-import pandas as pd
+import copy
+import xlrd
+import math
+import numpy as np
+from keras.models import Sequential
+from keras.layers import Dense,Dropout
+import matplotlib.pyplot as plt
+import  pandas as pd
+from sklearn import preprocessing
 import tensorflow as tf
 import glob,os
+import keras
 import csv
 input=[]
 path = r'E:\new_ai\输入\input'+str(101)+'.csv'
@@ -22,16 +25,42 @@ for i in range(101,201):
      da = np.loadtxt(f,int,delimiter = ",")
      data=np.vstack((data,da ))
 
+label=keras.utils.to_categorical(data[:,36])
+data=data[:,0:35]
+msk=np.random.rand(len(data))<0.8
+train_data=data[msk]
+test_data=data[~msk]
+train_label=label[msk]
+test_label=label[~msk]
+print(test_label)
 
-train_data = data[:,0:35]
-label=data[:,36]
+minmax_scale = preprocessing.MinMaxScaler(feature_range=(0, 1))
+train_data = minmax_scale.fit_transform(train_data)
+test_data = minmax_scale.fit_transform(test_data)
+print(np.shape(train_data))
+print(np.shape(train_label))
 
-pca = PCA(n_components=20)
-train_data = pca.fit_transform(train_data)
+model=Sequential()
+model.add(Dense(units=30,input_dim=35,kernel_initializer='uniform',activation='relu'))
+model.add(Dense(units=30,kernel_initializer='uniform',activation='relu'))
+model.add(Dense(units=30,kernel_initializer='uniform',activation='relu'))
+model.add(Dense(units=20,kernel_initializer='uniform',activation='softmax'))
+model.compile(loss='categorical_crossentropy',optimizer='sgd',metrics=['accuracy'])
+train_history=model.fit(x=train_data,y=train_label,validation_split=0.2,epochs=2000,batch_size=1000,verbose=2)
+
+def show_train_history(train_history,train,validation):
+    plt.plot(train_history.history[train])
+    plt.plot(train_history.history[validation])
+    plt.title('Train history')
+    plt.ylabel(train)
+    plt.xlabel('epoch')
+    plt.legend(['train','validation'],loc='upper left')
+    plt.show()
 
 
 
-x_train,x_test,y_train,y_test = train_test_split(train_data,label,test_size=0.2,random_state=0)
-clf= MLPClassifier(hidden_layer_sizes=[18,18],max_iter=20000,learning_rate='constant', alpha=1e-5, learning_rate_init=0.0001,activation='relu',solver ='adam',verbose=True)
-clf.fit(x_train, y_train)
-print('模型得分:{:.2f}'.format(clf.score(x_test,y_test)))
+scores=model.evaluate(x=test_data,y=test_label)
+print('最终得分为：'+str(scores[1]))
+show_train_history(train_history,'val_acc')
+all_probability=model.predict(train_data)
+print(all_probability[0])
